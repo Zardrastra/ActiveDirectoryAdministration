@@ -1,0 +1,29 @@
+#Grab name of template user to be used as reference for Address update within sub OUs within ActiveDirectory
+function AddressUpdate {
+$employeeTemplate = Read-Host 'Employee Template to Apply'
+$copyObject = get-aduser -identity $employeeTemplate -Properties Country,City,PostalCode,physicalDeliveryOfficeName,StreetAddress,State,wWWHomePage,Company
+$AccountOUPath = Get-ADUser $employeeTemplate -Properties distinguishedname,cn | Select-Object @{n='ParentContainer';e={$_.distinguishedname -replace "CN=$($_.cn),",''}}
+$CurrentADUsers = Get-ADuser -Filter * -SearchBase $AccountOUPath.ParentContainer -properties Country,City,PostalCode,physicalDeliveryOfficeName,StreetAddress,State,wWWHomePage,Company
+
+try {
+ForEach ($usrObj in $CurrentADUsers) { 
+$usrObj.Country = $copyObject.Country
+$usrObj.City = $copyObject.City
+$usrObj.PostalCode= $copyObject.PostalCode
+$usrObj.physicalDeliveryOfficeName = $copyObject.physicalDeliveryOfficeName
+$usrObj.StreetAddress = $copyObject.StreetAddress
+$usrObj.State = $copyObject.State
+$usrObj.wWWHomePage = $copyObject.wWWHomePage
+$usrObj.Company = $copyObject.Company
+
+Set-ADUser -instance $usrObj -ErrorVariable $ErrorAC
+}
+}
+catch {
+"There are issues with the details provided, kindly review the following error"
+write-host $ErrorAC
+Pause
+AddressUpdate
+}
+}
+AddressUpdate
