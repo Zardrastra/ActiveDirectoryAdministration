@@ -25,7 +25,7 @@ $global:starttime = get-date
 clear-host
 
     [string] $Global:PSTName = $EmployeeMailboxName + ".pst"
-    [string] $Global:filepath = $Global:LocalShare + $EmployeeMailboxName + $PSTName
+    [string] $Global:filepath = $Global:LocalShare + $PSTName
     $Global:InitialPST = Get-MailboxExportRequest -Mailbox $EmployeeMailboxName | Get-MailboxExportRequestStatistics
     $Global:ExportStatus = $InitialPST.Status
     $NTAccount = Get-ADuser $EmployeeMailboxName
@@ -41,7 +41,18 @@ Beginning PST Backup process for $EmployeeName
 ******************************************
 "@
                 New-MailboxExportRequest -DomainController $ExcDomainControler -mailbox $EmployeeMailboxName -FilePath $filepath
-                Start-Sleep -s 900
+				$propagationLock = $True
+					while ($propagationLock -eq $True){
+						$QueueTest = Get-MailboxExportRequest -Mailbox $EmployeeMailboxName | Get-MailboxExportRequestStatistics
+						if ($escapeTest -ne $null){
+						$propagationLock = $False
+						}
+						Else{
+						"Awaiting Mailbox Backup Request to be added to processing Queue, retrying in 2 minutes"
+						Start-Sleep -s 120
+						}
+				}
+                
 				}
     }
     [Bool]$global:ProcessActive = $True
@@ -79,12 +90,11 @@ Beginning PST Backup process for $EmployeeName
 		    }
             Elseif($ExportStatus -eq "Failed"){
 
-            $PSTCopyErr = "PST Process For user $EmployeeMailboxName failed"
+            $PSTCopyErr = "$CurrentTimetext PST Process For user $EmployeeMailboxName failed"
             write-host $PSTCopyErr
             $loglocation = $LocalShare + "output.txt"
             $PSTCopyErr >> $loglocation
-            "Press any key to continue"
-            pause
+            [Bool]$Global:ProcessActive = $False
             }
             Elseif($ExportStatus -eq $null){
             [Bool]$Global:ProcessActive = $False
