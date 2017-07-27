@@ -1,4 +1,4 @@
-#Create table of NT Account Aliases which match the rule "AccountDisabled and which are "UserMailbox"
+#Collect mailbox aliases which match the rule "AccountDisabled and which are "UserMailbox"
 Write-host "Collecting Disabled Mailbox information for backup"
 $Mailboxes = Get-Mailbox -ResultSize Unlimited | where-object { $_.ExchangeUserAccountControl -like "AccountDisabled" -and $_.RecipientTypeDetails -eq 'UserMailbox' } | select-object alias
 clear-host
@@ -9,10 +9,11 @@ $Global:RunningStatuses = "Completed",  "InProgress", "Failed", "Queued"
 # $RemoteShare is the location of the offsite share where the script is to upload the fully completed PST backup file to.
 
 [string] $Global:ExcDomainControler = (get-addomain).pdcemulator
-[string] $Global:RemoteShare = #Path to external storage share (i.e. Azure Cloud -example "\\something.contoso.com\Archive\PST\"
+[string] $Global:RemoteShare = #Path to external storage share (i.e. Azure Cloud - Example: "\\something.contoso.com\Archive\PST\"
 [string] $Global:LocalShare = #Path to local network share - Example: "\\Server\ShareName\Output\"
 
-#Function used to print status of the export attempt and to delay copying the mailbox until the process has completed, this will also skip mailboxes which are in "completed" status.
+#Function used to print status of the export attempt and to delay copying the mailbox until the process has completed,
+#this will also skip mailboxes which are in "completed" status.
 function ExchangeWaitLoop {
 $global:starttime = get-date
 clear-host
