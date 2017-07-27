@@ -1,7 +1,8 @@
 #Use case: This script allows the backup of a disabled mailbox from a mailbox database to a share that is writable
 #Once downloaded this script will then copy this to another storage location
-#this is useful in instances where the mail servers do not have direct write access to the storage location
-#or may have limited space on the server where it has write access to
+#this is useful in instances where the mail servers do not have direct write access to the final storage location
+#and are writing to a space limited location
+#(servers behind a DMZ for example)
 
 #Collect mailbox aliases which match the rule "AccountDisabled and which are "UserMailbox"
 Write-host "Collecting Disabled Mailbox information for backup"
