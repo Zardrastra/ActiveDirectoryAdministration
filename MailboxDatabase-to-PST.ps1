@@ -44,10 +44,11 @@ Beginning PST Backup process for $EmployeeName
 				$propagationLock = $True
 					while ($propagationLock -eq $True){
 						$QueueTest = Get-MailboxExportRequest -Mailbox $EmployeeMailboxName | Get-MailboxExportRequestStatistics
-						if ($escapeTest -ne $null){
+						if ($QueueTest -ne $null){
 						$propagationLock = $False
 						}
 						Else{
+						clear-host
 						"Awaiting Mailbox Backup Request to be added to processing Queue, retrying in 2 minutes"
 						Start-Sleep -s 120
 						}
