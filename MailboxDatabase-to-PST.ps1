@@ -24,6 +24,7 @@ function ExchangeWaitLoop {
 $Global:starttime = get-date
 $Global:MailboxTotal = $Mailboxes.count
 $Global:currentMailboxCount++
+$TotalPercentComplete = ($currentMailboxCount/$MailboxTotal).ToString("P")
 #Set a flag for mailbox download request false to allow the mailbox to be skipped if it is already backed up
 [bool]$Global:propagationLock = $False
 clear-host
@@ -143,7 +144,7 @@ clear-host
 	}
 	currentTimeFN
 clear-host
-$TotalPercentComplete = ($currentMailboxCount/$MailboxTotal).ToString("P")
+
 @"
 	$CurrentTimetext
     Mailbox $currentMailboxCount of $MailboxTotal ($TotalPercentComplete Overall)
