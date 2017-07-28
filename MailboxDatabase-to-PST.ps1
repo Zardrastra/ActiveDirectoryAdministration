@@ -19,48 +19,47 @@ $Global:RunningStatuses = "Completed",  "InProgress", "Failed", "Queued"
 [string] $Global:LocalShare = #Path to local network share - Example: "\\Server\ShareName\Output\"
 
 #Function used to print status of the export attempt and to delay copying the mailbox until the process has completed,
-#this will also skip mailboxes which are in "completed" status.
+#this will also skip mailboxes which are in "completed" or failed status (In the case of failure it will write to a log and skip).
 function ExchangeWaitLoop {
-$global:starttime = get-date
+$Global:starttime = get-date
+$Global:MailboxTotal = $Mailboxes.count
+$Global:currentMailboxCount++
+#Set a flag for mailbox download request false to allow the mailbox to be skipped if it is already backed up
+[bool]$Global:propagationLock = $False
 clear-host
-
+    #Generate standard naming format for PST backup file - (Alias).PST
     [string] $Global:PSTName = $EmployeeMailboxName + ".pst"
+    #Generate the path variable for where the PST is to be downloaded to temporarily
     [string] $Global:filepath = $Global:LocalShare + $PSTName
     $Global:InitialPST = Get-MailboxExportRequest -Mailbox $EmployeeMailboxName | Get-MailboxExportRequestStatistics
     $Global:ExportStatus = $InitialPST.Status
+
+    #TODO: Resolve issue with NTACCOUNT naming to use other measure to find the user account name, this currently fails if the mailbox Alias is not the same as the employee NT account name
     $NTAccount = Get-ADuser $EmployeeMailboxName
     $Global:EmployeeName = $NTAccount.Name
-
+#Check to test if request to backup mailbox to PST is to be sent to exchange server processing queue
     if ($RunningStatuses -notcontains $ExportStatus){
+        #Check contents of remote share and test if mailbox.pst file for use already exists (in the form Alias.pst)
 		$RemoteDir = Get-ChildItem $RemoteShare
-		$RemotePST = $RemoteDir.Name
+        $RemotePST = $RemoteDir.Name
+        #If the remote server does not have a file with the alias.pst for this employee add the mailbox to the current queue
 		if($RemotePST -notcontains $PSTName){
 @"
 Beginning PST Backup process for $EmployeeName
-
 ******************************************
 "@
                 New-MailboxExportRequest -DomainController $ExcDomainControler -mailbox $EmployeeMailboxName -FilePath $filepath
-				$propagationLock = $True
-					while ($propagationLock -eq $True){
-						$QueueTest = Get-MailboxExportRequest -Mailbox $EmployeeMailboxName | Get-MailboxExportRequestStatistics
-						if ($QueueTest -ne $null){
-						$propagationLock = $False
-						}
-						Else{
-						clear-host
-						"Awaiting Mailbox Backup Request to be added to processing Queue, retrying in 2 minutes"
-						Start-Sleep -s 120
-						}
-				}
+                #Set a flag for mailbox propagation to prevent process active loop from exiting before the queue begins processing
+				[bool]$Global:propagationLock = $True
+					}
                 
 				}
-    }
-    [Bool]$global:ProcessActive = $True
+	#Flag to set the process loop active, until false the while-loop will run
+    [Bool]$Global:ProcessActive = $True
 
 
-    while ($ProcessActive -eq $True){
-        
+while ($ProcessActive -eq $True){
+        #Get the current status of the mailbox in the exchange backup loop on each run of the loop.
         $Global:ProcessingQueue = Get-MailboxExportRequest -Mailbox $EmployeeMailboxName | Get-MailboxExportRequestStatistics 
 
         #Find mailbox status after running backup request 
@@ -79,10 +78,20 @@ Beginning PST Backup process for $EmployeeName
 			$ExportStatus = $ProcessingQueue.Status
 				if($ExportStatus -eq "Completed"){
 					if ($PSTExists -eq $True){
+						Try{
 						"Mailbox copy for User $EmployeeMailboxName completed, copying to remote share."
                         Start-Sleep -s 25
 						move-item $filepath $RemoteShare
 						#clear-host
+						}
+						catch{
+						currentTimeFN
+						$PSTCopyErr = "$CurrentTimetext PST Copy process for user $EmployeeMailboxName failed"
+						write-host $PSTCopyErr
+						$loglocation = $LocalShare + "output.txt"
+                        $PSTCopyErr >> $loglocation
+                        pause
+						}
 						}
 				}
 				Elseif($PSTExists -eq $False){
@@ -90,15 +99,16 @@ Beginning PST Backup process for $EmployeeName
 				}
 		    }
             Elseif($ExportStatus -eq "Failed"){
-
+			currentTimeFN
             $PSTCopyErr = "$CurrentTimetext PST Process For user $EmployeeMailboxName failed"
             write-host $PSTCopyErr
             $loglocation = $LocalShare + "output.txt"
             $PSTCopyErr >> $loglocation
             [Bool]$Global:ProcessActive = $False
             }
-            Elseif($ExportStatus -eq $null){
-            [Bool]$Global:ProcessActive = $False
+            #Nest elseif statement into a flag statement - Account Processing on/off
+            Elseif(($ExportStatus -eq $null) -and($propagationLock -eq $False)){
+					[Bool]$Global:ProcessActive = $False
 @"
 Mailbox backup for $EmployeeName already completed
 Starting next mailbox copy
@@ -107,21 +117,23 @@ Starting next mailbox copy
 
 		    else {
 #Else function to generate status message of the ongoing backup with timestamps
-		    $currentTime = get-date
             Start-Sleep -s 5
+			currentTimeFN
 		    clear-host
-            $CurrentTimetext = "Current time:" + " " + $currentTime.ToShortTimeString()
+if ($PercentComplete -ne $null){
+$PercentCompleteText = "Percent completed: $PercentComplete %"
+}
+elseif ($PercentComplete -eq $null){
+$PercentCompleteText = "Awaiting Mailbox Backup"
+}
 @"
 Awaiting mailbox backup for:
-
 $EmployeeName
-
+Mailbox $currentMailboxCount of $MailboxTotal ($TotalPercentComplete Overall)
 Start time: $starttime
-
-
-Current time: $CurrentTimetext
-Percent completed: $PercentComplete %
-"Refreshing backup progress in 2 minutes"
+$CurrentTimetext
+$PercentCompleteText
+Refreshing backup progress in 2 minutes
 "@
 Write-Host `a
 Start-Sleep -s 120
@@ -129,7 +141,12 @@ clear-host
 "Refreshing backup progress..."
 		}
 	}
+	currentTimeFN
+clear-host
+$TotalPercentComplete = ($currentMailboxCount/$MailboxTotal).ToString("P")
 @"
+	$CurrentTimetext
+    Mailbox $currentMailboxCount of $MailboxTotal ($TotalPercentComplete Overall)
     Mailbox for $EmployeeName backed up
     Next mailbox backup in 5 seconds
 "@
@@ -137,6 +154,11 @@ clear-host
     clear-host
 }
 
+
+function currentTimeFN{
+$Global:currentTime = get-date
+$Global:CurrentTimetext = "Current time:" + " " + $currentTime.ToShortTimeString()
+}
 foreach ($mailbox in $Mailboxes) {
 $global:EmployeeMailboxName = $mailbox.alias
 ExchangeWaitLoop
