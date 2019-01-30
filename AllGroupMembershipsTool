@@ -1,28 +1,23 @@
 $Time = Get-Date
-
 $DateRaw = Get-Date
-
 [string]$DateString = $DateRaw.ToLongDateString()
-
 [string]$TimeString = $DateRaw.ToLongTimeString()
 
+
+
 $TimeString = $TimeString | ForEach-Object {
-
     $_ -replace ":", "."
-
 }
 
 $dir = $env:USERPROFILE + "\Reporting\Active Directory\Group Membership Reports\" + $DateString
 New-Item -Path "$dir" -Type directory | Out-Null
-
-$groups = Get-ADGroup -Properties * -Filter * #-SearchBase "DC=lapsang,DC=test"
-
+$groups = Get-ADGroup -Properties * -Filter * -SearchBase "DC=marine,DC=ie"
 
 foreach ($group in $groups){
 
 $Groupfile = $group.CN
-$MembersGp = get-adgroupmember -Identity $group.CN
-$csvout = $dir + "\" + $group + ".csv"
+$MembersGp = get-adgroupmember -Identity $Groupfile
+$csvout = $dir + "\" + $Groupfile + ".csv"
 $MembersGp | Export-Csv $csvout
 
 }
