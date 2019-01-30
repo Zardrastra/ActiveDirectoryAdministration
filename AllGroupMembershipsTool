@@ -15,9 +15,10 @@ $groups = Get-ADGroup -Properties * -Filter * -SearchBase "DC=marine,DC=ie"
 
 foreach ($group in $groups){
 
-$Groupfile = $group.CN
+$Groupfile = $group.DistinguishedName
+$Groupname = $group.CN
 $MembersGp = get-adgroupmember -Identity $Groupfile
-$csvout = $dir + "\" + $Groupfile + ".csv"
+$csvout = $dir + "\" + $Groupname + ".csv"
 $MembersGp | Export-Csv $csvout
 
 }
