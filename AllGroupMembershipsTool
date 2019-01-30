@@ -11,7 +11,7 @@ $TimeString = $TimeString | ForEach-Object {
 
 $dir = $env:USERPROFILE + "\Reporting\Active Directory\Group Membership Reports\" + $DateString
 New-Item -Path "$dir" -Type directory | Out-Null
-$groups = Get-ADGroup -Properties * -Filter * -SearchBase "DC=marine,DC=ie"
+$groups = Get-ADGroup -Properties * -Filter * -SearchBase "DC=lapsang,DC=test"
 
 foreach ($group in $groups){
 
