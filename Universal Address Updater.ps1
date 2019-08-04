@@ -1,5 +1,5 @@
 #Grab name of template user to be used as reference for Address update within sub OUs within ActiveDirectory
-#Useful for batch updating child accounts under an OU where a template file exists
+#Useful for batch updating child accounts under an OU where a template exists
 #Must be run using a Domain Administrator account 
 
 function AddressUpdate {
